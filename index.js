@@ -27,7 +27,7 @@ try {
     const sshAgentArgs = (authSock && authSock.length > 0) ? ['-a', authSock] : [];
 
     // Extract auth socket path and agent pid and set them as job variables
-    child_process.execFileSync(sshAgent, sshAgentArgs).toString().split("\n").forEach(function(line) {
+    child_process.execFileSync(sshAgent, sshAgentArgs).toString().split("\n").forEach(function (line) {
         const matches = /^(SSH_AUTH_SOCK|SSH_AGENT_PID)=(.*); export \1/.exec(line);
 
         if (matches && matches.length > 0) {
@@ -39,7 +39,7 @@ try {
 
     console.log("Adding private key(s) to agent");
 
-    privateKey.split(/(?=-----BEGIN)/).forEach(function(key) {
+    privateKey.split(/(?=-----BEGIN)/).forEach(function (key) {
         child_process.execFileSync(sshAdd, ['-'], { input: key.trim() + "\n" });
     });
 
@@ -49,7 +49,7 @@ try {
 
     console.log('Configuring deployment key(s)');
 
-    child_process.execFileSync(sshAdd, ['-L']).toString().split(/\r?\n/).forEach(function(key) {
+    child_process.execFileSync(sshAdd, ['-L']).toString().split(/\r?\n/).forEach(function (key) {
         const parts = key.match(/\bgithub\.com[:/]([_.a-z0-9-]+\/[_.a-z0-9-]+)/i);
 
         if (!parts) {
@@ -60,17 +60,18 @@ try {
 
         const sha256 = crypto.createHash('sha256').update(key).digest('hex');
         const ownerAndRepo = parts[1].replace(/\.git$/, '');
+        const path = ownerAndRepo + '.git'
 
         fs.writeFileSync(`${homeSsh}/key-${sha256}`, key + "\n", { mode: '600' });
 
-        child_process.execSync(`git config --global --replace-all url."git@key-${sha256}.github.com:${ownerAndRepo}".insteadOf "https://github.com/${ownerAndRepo}"`);
-        child_process.execSync(`git config --global --add url."git@key-${sha256}.github.com:${ownerAndRepo}".insteadOf "git@github.com:${ownerAndRepo}"`);
-        child_process.execSync(`git config --global --add url."git@key-${sha256}.github.com:${ownerAndRepo}".insteadOf "ssh://git@github.com/${ownerAndRepo}"`);
+        child_process.execSync(`git config --global --replace-all url."git@key-${sha256}.github.com:${ownerAndRepo}".insteadOf "https://github.com/${path}"`);
+        child_process.execSync(`git config --global --add url."git@key-${sha256}.github.com:${ownerAndRepo}".insteadOf "git@github.com:${path}"`);
+        child_process.execSync(`git config --global --add url."git@key-${sha256}.github.com:${ownerAndRepo}".insteadOf "ssh://git@github.com/${path}"`);
 
         const sshConfig = `\nHost key-${sha256}.github.com\n`
-                              + `    HostName github.com\n`
-                              + `    IdentityFile ${homeSsh}/key-${sha256}\n`
-                              + `    IdentitiesOnly yes\n`;
+            + `    HostName github.com\n`
+            + `    IdentityFile ${homeSsh}/key-${sha256}\n`
+            + `    IdentitiesOnly yes\n`;
 
         fs.appendFileSync(`${homeSsh}/config`, sshConfig);
 
